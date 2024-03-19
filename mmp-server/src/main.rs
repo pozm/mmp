@@ -1,8 +1,9 @@
 pub mod cacher;
+mod routes;
 pub mod songfile;
 mod state;
 mod tasks;
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 
 use axum::Router;
 use clap::Parser;
@@ -31,12 +32,14 @@ async fn main() {
     tracing::subscriber::set_global_default(subscriber).unwrap();
     let server_args = ServerArgs::parse();
 
+    let server_state: Arc<state::ServerState> = Default::default();
+
     debug!("registering tasks");
-    let awtasks = tokio::task::spawn(tasks::register_all(server_args));
-    let app = Router::new();
+    let awtasks = tokio::task::spawn(tasks::register_all(server_args, Arc::clone(&server_state)));
+    let server_router = routes::make_router(Arc::clone(&server_state));
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     tracing::info!("listening on port 3000");
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(listener, server_router).await.unwrap();
     // send stop notification
     let _ = awtasks.await;
 }

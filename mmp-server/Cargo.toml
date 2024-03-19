@@ -23,3 +23,5 @@ parking_lot = "0.12.1"
 mini-moka = "0.10.3"
 mmp-lib = { path = "../mmp-lib/" }
 lofty = "0.18.2"
+rustc-hash = "1.1.0"
+dashmap = "5.5.3"

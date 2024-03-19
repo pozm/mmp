@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{hash::Hasher, path::Path};
 
 use eyre::{ContextCompat, Ok, Result};
 use lofty::{Accessor, AudioFile, Probe, TaggedFileExt};
@@ -11,6 +11,14 @@ pub fn song_from_path(path: &Path) -> Result<SongEntry> {
         .primary_tag()
         .wrap_err("unable to read primary tag")?;
     let props = tagged.properties();
+    let id = tag
+        .get_string(&lofty::ItemKey::MusicBrainzTrackId)
+        .map(|x| x.to_string())
+        .unwrap_or_else(|| {
+            let mut hasher = rustc_hash::FxHasher::default();
+            hasher.write(path.as_os_str().as_encoded_bytes());
+            format!("mmp.{}", hasher.finish())
+        });
     Ok(SongEntry {
         title: tag.title().wrap_err("unable to read title")?.to_string(),
         artist: tag.artist().wrap_err("unable to read artist")?.to_string(),
@@ -21,10 +29,7 @@ pub fn song_from_path(path: &Path) -> Result<SongEntry> {
         bit_depth: props.bit_depth().unwrap_or_default() as u16,
         channels: props.channels().unwrap_or_default() as u16,
         year: tag.year().unwrap_or_default() as u16,
-        id: tag
-            .get_string(&lofty::ItemKey::MusicBrainzTrackId)
-            .map(|x| x.to_string())
-            .unwrap_or_else(|| path.to_string_lossy().to_string()),
+        id,
         metadata: tag
             .items()
             .map(|ti| {
