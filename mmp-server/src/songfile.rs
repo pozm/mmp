@@ -1,11 +1,13 @@
-use std::{hash::Hasher, path::Path};
+use std::{hash::Hasher, path::Path, sync::Arc};
 
 use eyre::{ContextCompat, Ok, Result};
 use lofty::{Accessor, AudioFile, Probe, TaggedFileExt};
 use mmp_lib::SongEntry;
 
+use crate::state::ServerState;
+
 #[tracing::instrument]
-pub fn song_from_path(path: &Path) -> Result<SongEntry> {
+pub fn song_from_path(state: Arc<ServerState>, path: &Path) -> Result<SongEntry> {
     let tagged = Probe::open(path)?.read()?;
     let tag = tagged
         .primary_tag()
@@ -19,6 +21,24 @@ pub fn song_from_path(path: &Path) -> Result<SongEntry> {
             hasher.write(path.as_os_str().as_encoded_bytes());
             format!("mmp.{}", hasher.finish())
         });
+    let pictures = tag.pictures().first().cloned();
+    let id2 = id.clone();
+    tokio::task::spawn(async move {
+        let Some(first_pic) = pictures else {
+            return;
+        };
+        let pictype = first_pic.mime_type();
+        let data = first_pic.into_data();
+        let dir = state.args.data_dir.join("covers");
+        tokio::fs::create_dir_all(&dir).await.unwrap_or_else(|e| {
+            tracing::error!("unable to create cover dir: {}", e);
+        });
+        tokio::fs::write(dir.join(format!("{}.png", &id2)), data)
+            .await
+            .unwrap_or_else(|e| {
+                tracing::error!("unable to write cover for {}: {}", id2, e);
+            });
+    });
     Ok(SongEntry {
         title: tag.title().wrap_err("unable to read title")?.to_string(),
         artist: tag.artist().wrap_err("unable to read artist")?.to_string(),

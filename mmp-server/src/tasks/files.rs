@@ -28,7 +28,7 @@ pub async fn check_files(state: Arc<crate::state::ServerState>) {
                 let state = Arc::clone(&state);
                 // spawn blocking because the function will read files without tokio
                 tasks.push(tokio::task::spawn_blocking(move || {
-                    let song = song_from_path(&path);
+                    let song = song_from_path(Arc::clone(&state), &path);
                     match song {
                         Ok(song) => {
                             let fields = &state.search.fields;
