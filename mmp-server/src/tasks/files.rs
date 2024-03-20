@@ -25,23 +25,19 @@ pub async fn check_files(state: Arc<crate::state::ServerState>) {
         match entries.next().await {
             Some(Ok(entry)) => {
                 let path = entry.path();
-                // tokio::task::spawn(async {
                 let state = Arc::clone(&state);
+                // spawn blocking because the function will read files without tokio
                 tasks.push(tokio::task::spawn_blocking(move || {
                     let song = song_from_path(&path);
                     match song {
                         Ok(song) => {
-                            let schema = &state.search.schema;
-                            let song_id = schema.get_field("song_id").unwrap();
-                            let song_title = schema.get_field("song_title").unwrap();
-                            let song_artist = schema.get_field("song_artist").unwrap();
-                            let song_album = schema.get_field("song_album").unwrap();
+                            let fields = &state.search.fields;
 
                             let mut doc = Document::default();
-                            doc.add_text(song_id, &song.id);
-                            doc.add_text(song_title, &song.title);
-                            doc.add_text(song_artist, &song.artist);
-                            doc.add_text(song_album, &song.album);
+                            doc.add_text(fields.song_id, &song.id);
+                            doc.add_text(fields.song_title, &song.title);
+                            doc.add_text(fields.song_artist, &song.artist);
+                            doc.add_text(fields.song_album, &song.album);
                             let _ = state
                                 .search
                                 .writer
@@ -58,7 +54,6 @@ pub async fn check_files(state: Arc<crate::state::ServerState>) {
                         }
                     }
                 }));
-                // });
             }
             Some(Err(e)) => {
                 tracing::error!("error: {}", e);
