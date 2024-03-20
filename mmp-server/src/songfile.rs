@@ -1,12 +1,13 @@
 use std::{hash::Hasher, path::Path, sync::Arc};
 
-use eyre::{ContextCompat, Ok, Result};
+use eyre::{ContextCompat, Result};
 use lofty::{Accessor, AudioFile, Probe, TaggedFileExt};
 use mmp_lib::SongEntry;
+use tracing::debug;
 
 use crate::state::ServerState;
 
-#[tracing::instrument]
+#[tracing::instrument(skip(state))]
 pub fn song_from_path(state: Arc<ServerState>, path: &Path) -> Result<SongEntry> {
     let tagged = Probe::open(path)?.read()?;
     let tag = tagged
@@ -25,9 +26,13 @@ pub fn song_from_path(state: Arc<ServerState>, path: &Path) -> Result<SongEntry>
     let id2 = id.clone();
     tokio::task::spawn(async move {
         let dir = state.args.data_dir.join("covers");
+        tokio::fs::create_dir_all(&dir).await.unwrap_or_else(|e| {
+            tracing::error!("unable to create cover dir: {}", e);
+        });
         let cover_path = dir.join(format!("{}.png", &id2));
-        let ignore = tokio::fs::try_exists(&cover_path).await.is_ok();
-        if ignore {
+        let ignore = tokio::fs::try_exists(&cover_path).await;
+        if let Ok(true) = ignore {
+            debug!("cover already exists for {}", id2);
             return;
         }
         let Some(first_pic) = pictures else {
@@ -35,9 +40,6 @@ pub fn song_from_path(state: Arc<ServerState>, path: &Path) -> Result<SongEntry>
         };
         // let pictype = first_pic.mime_type();
         let data = first_pic.into_data();
-        tokio::fs::create_dir_all(&dir).await.unwrap_or_else(|e| {
-            tracing::error!("unable to create cover dir: {}", e);
-        });
         tokio::fs::write(cover_path, data)
             .await
             .unwrap_or_else(|e| {
