@@ -8,6 +8,7 @@ use crate::state::ServerState;
 
 use self::test::make_test_router;
 
+#[tracing::instrument]
 pub fn make_router(state: Arc<ServerState>) -> Router {
     Router::new()
         .nest("/test", make_test_router())

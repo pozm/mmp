@@ -1,4 +1,6 @@
-use std::collections::HashMap;
+pub mod routes;
+
+use std::{collections::HashMap, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 
@@ -15,4 +17,6 @@ pub struct SongEntry {
     pub channels: u16,
     pub year: u16,
     pub metadata: HashMap<String, String>,
+    #[serde(skip)]
+    pub path: PathBuf,
 }

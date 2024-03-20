@@ -30,6 +30,7 @@ pub fn song_from_path(path: &Path) -> Result<SongEntry> {
         channels: props.channels().unwrap_or_default() as u16,
         year: tag.year().unwrap_or_default() as u16,
         id,
+        path: path.to_path_buf(),
         metadata: tag
             .items()
             .map(|ti| {

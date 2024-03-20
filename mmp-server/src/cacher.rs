@@ -1,4 +1,4 @@
-use futures_lite::Future;
+use futures::Future;
 use parking_lot::Mutex;
 use std::{fmt::Debug, pin::Pin, sync::Arc, time::Duration};
 use tokio::sync::broadcast;
