@@ -24,16 +24,21 @@ pub fn song_from_path(state: Arc<ServerState>, path: &Path) -> Result<SongEntry>
     let pictures = tag.pictures().first().cloned();
     let id2 = id.clone();
     tokio::task::spawn(async move {
+        let dir = state.args.data_dir.join("covers");
+        let cover_path = dir.join(format!("{}.png", &id2));
+        let ignore = tokio::fs::try_exists(&cover_path).await.is_ok();
+        if ignore {
+            return;
+        }
         let Some(first_pic) = pictures else {
             return;
         };
-        let pictype = first_pic.mime_type();
+        // let pictype = first_pic.mime_type();
         let data = first_pic.into_data();
-        let dir = state.args.data_dir.join("covers");
         tokio::fs::create_dir_all(&dir).await.unwrap_or_else(|e| {
             tracing::error!("unable to create cover dir: {}", e);
         });
-        tokio::fs::write(dir.join(format!("{}.png", &id2)), data)
+        tokio::fs::write(cover_path, data)
             .await
             .unwrap_or_else(|e| {
                 tracing::error!("unable to write cover for {}: {}", id2, e);
