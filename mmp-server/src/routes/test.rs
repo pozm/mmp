@@ -8,7 +8,7 @@ use axum::{
     Json, Router,
 };
 use mmp_lib::routes::test::SearchSongQuery;
-use tantivy::query::QueryParser;
+use tantivy::{error, query::QueryParser};
 use tracing::debug;
 
 use crate::state::ServerState;
@@ -22,16 +22,20 @@ pub async fn test_song_search(
     let mut songs = Vec::new();
     let searcher = state.search.reader.searcher();
     let fields = state.search.fields.clone();
-    let query_parser = QueryParser::for_index(
+    let mut query_parser = QueryParser::for_index(
         &state.search.index,
         vec![fields.song_title, fields.song_artist, fields.song_album],
     );
+    query_parser.set_field_fuzzy(fields.song_title, false, 2, false);
     debug!("parsing query: {:?}", query.query);
     let query = query_parser
         .parse_query(&query.query)
+        .inspect_err(|e| tracing::error!("unable to parse query: {:?}", e))
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    // blocking - in actual route it needs to be spawned
     let top_10 = searcher
         .search(&query, &tantivy::collector::TopDocs::with_limit(10))
+        .inspect_err(|e| tracing::error!("unable to search query: {:?}", e))
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     for (_score, doc_address) in top_10 {
         debug!("retrieving doc: {:?}", doc_address);

@@ -1,11 +1,11 @@
 use futures::{future::join_all, stream::StreamExt};
 use std::{path::Path, sync::Arc};
-use tantivy::Document;
+use tantivy::{collector::Count, query::QueryParser, Document};
 use tracing::{debug, error};
 
 use async_walkdir::{Filtering, WalkDir};
 
-use crate::songfile::song_from_path;
+use crate::{search::register_song_index, songfile::song_from_path};
 const VALID_MUSIC_EXTS: [&str; 7] = ["mp3", "flac", "wav", "ogg", "m4a", "wma", "aiff"];
 
 #[tracing::instrument]
@@ -28,25 +28,18 @@ pub async fn check_files(state: Arc<crate::state::ServerState>) {
                 let state = Arc::clone(&state);
                 // spawn blocking because the function will read files without tokio
                 tasks.push(tokio::task::spawn_blocking(move || {
-                    let song = song_from_path(Arc::clone(&state), &path);
+                    let song = song_from_path(Arc::clone(&state), &path, Some(true));
                     match song {
                         Ok(song) => {
-                            let fields = &state.search.fields;
-
-                            let mut doc = Document::default();
-                            doc.add_text(fields.song_id, &song.id);
-                            doc.add_text(fields.song_title, &song.title);
-                            doc.add_text(fields.song_artist, &song.artist);
-                            doc.add_text(fields.song_album, &song.album);
-                            let _ = state
-                                .search
-                                .writer
-                                .read()
-                                .add_document(doc)
-                                .inspect(|_id| debug!("added {} to song indexer", &song.id))
-                                .inspect_err(|e| {
-                                    error!("unable to add {} to song indexer: {e}", &song.id)
-                                });
+                            let searcher = state.search.reader.searcher();
+                            let fields = state.search.fields.clone();
+                            register_song_index(
+                                &song,
+                                fields.as_ref(),
+                                &state.search.index,
+                                &searcher,
+                                &state.search.writer.read(),
+                            );
                             state.music_library.data.insert(song.id.clone(), song);
                         }
                         Err(e) => {

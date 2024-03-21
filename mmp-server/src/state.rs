@@ -8,6 +8,7 @@ use clap::Parser;
 use dashmap::DashMap;
 use mmp_lib::SongEntry;
 use parking_lot::RwLock;
+use sqlx::{sqlite::SqliteConnectOptions, ConnectOptions};
 use tantivy::schema::Schema;
 
 use crate::{cacher::ReadyCache, search};
@@ -17,6 +18,7 @@ pub struct ServerState {
     pub music_library: MusicLibrary,
     pub search: SongSearch,
     pub args: ServerArgs,
+    pub db_pool: sqlx::SqlitePool,
 }
 #[derive(Debug, Default)]
 pub struct MusicLibrary {
@@ -28,6 +30,7 @@ pub struct SearchFields {
     pub song_title: tantivy::schema::Field,
     pub song_artist: tantivy::schema::Field,
     pub song_album: tantivy::schema::Field,
+    pub song_metadata: tantivy::schema::Field,
 }
 pub struct SongSearch {
     pub fields: Arc<SearchFields>,
@@ -60,11 +63,17 @@ impl SongSearch {
     }
 }
 impl ServerState {
-    pub fn new(data_dir: &Path, args: ServerArgs) -> Self {
+    pub async fn new(data_dir: &Path, args: ServerArgs) -> Self {
+        let sqlit = args.data_dir.join("mmp.db");
+        let conopts = SqliteConnectOptions::new()
+            .filename(sqlit)
+            .create_if_missing(true);
+        let db_pool = sqlx::SqlitePool::connect_with(conopts).await.unwrap();
         Self {
             search: SongSearch::new(data_dir),
             music_library: MusicLibrary::default(),
             args,
+            db_pool,
         }
     }
 }
@@ -74,11 +83,13 @@ impl SearchFields {
         let song_title = schema.get_field("song_title").unwrap();
         let song_artist = schema.get_field("song_artist").unwrap();
         let song_album = schema.get_field("song_album").unwrap();
+        let song_metadata = schema.get_field("song_metadata").unwrap();
         Self {
             song_id,
             song_title,
             song_artist,
             song_album,
+            song_metadata,
         }
     }
 }

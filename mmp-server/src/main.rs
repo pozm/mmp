@@ -1,4 +1,5 @@
 pub mod cacher;
+mod data;
 mod routes;
 pub mod search;
 pub mod songfile;
@@ -7,7 +8,6 @@ mod tasks;
 use std::sync::Arc;
 
 use clap::Parser;
-use tracing::debug;
 use tracing_subscriber::{layer::SubscriberExt, EnvFilter, Registry};
 use tracing_tree::HierarchicalLayer;
 
@@ -16,12 +16,9 @@ async fn main() {
     init_logging();
     let server_args = state::ServerArgs::parse();
 
-    let server_state: Arc<state::ServerState> = Arc::new(state::ServerState::new(
-        &server_args.data_dir.clone(),
-        server_args,
-    ));
+    let server_state: Arc<state::ServerState> =
+        Arc::new(state::ServerState::new(&server_args.data_dir.clone(), server_args).await);
 
-    debug!("registering tasks");
     let awtasks = tokio::task::spawn(tasks::register_all(Arc::clone(&server_state)));
     let server_router = routes::make_router(Arc::clone(&server_state));
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();

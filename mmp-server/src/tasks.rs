@@ -13,6 +13,7 @@ mod files;
 #[instrument(skip(state))]
 pub async fn register_all(state: Arc<crate::state::ServerState>) {
     let check_files_future = check_files(state);
-    let download_ffmpeg = tokio::task::spawn_blocking(install_ffmpeg);
-    let _ = join!(check_files_future, download_ffmpeg);
+    // we're currently not using ffmpeg
+    // let download_ffmpeg = tokio::task::spawn_blocking(install_ffmpeg);
+    let _ = join!(check_files_future);
 }

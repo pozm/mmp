@@ -22,7 +22,7 @@ async fn get_song_cover(
             .join(format!("{}.png", id)),
     )
     .await
-    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    .map_err(|_| StatusCode::NOT_FOUND)?;
     let mut headers = HeaderMap::new();
     headers.insert("Content-Type", "image/png".parse().unwrap());
     Ok((headers, img_data))
