@@ -8,10 +8,10 @@ use clap::Parser;
 use dashmap::DashMap;
 use mmp_lib::SongEntry;
 use parking_lot::RwLock;
-use sqlx::{sqlite::SqliteConnectOptions, ConnectOptions};
+use sqlx::{sqlite::SqliteConnectOptions, Acquire, ConnectOptions};
 use tantivy::schema::Schema;
 
-use crate::{cacher::ReadyCache, search};
+use crate::{cacher::ReadyCache, data::dbinit, search};
 
 #[derive(Debug)]
 pub struct ServerState {
@@ -69,6 +69,8 @@ impl ServerState {
             .filename(sqlit)
             .create_if_missing(true);
         let db_pool = sqlx::SqlitePool::connect_with(conopts).await.unwrap();
+        let pool_conn = db_pool.acquire().await.unwrap();
+        dbinit::init_db(pool_conn).await.unwrap();
         Self {
             search: SongSearch::new(data_dir),
             music_library: MusicLibrary::default(),

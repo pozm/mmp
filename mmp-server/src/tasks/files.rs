@@ -26,16 +26,17 @@ pub async fn check_files(state: Arc<crate::state::ServerState>) {
             Some(Ok(entry)) => {
                 let path = entry.path();
                 let state = Arc::clone(&state);
-                // spawn blocking because the function will read files without tokio
                 tasks.push(tokio::task::spawn_blocking(move || {
+                    // spawn blocking because the function will read files without tokio
+                    //         VVVVVVVVVVVVVV     <------^
                     let song = song_from_path(Arc::clone(&state), &path, Some(true));
+                    // 🙏 no inlay hints
                     match song {
                         Ok(song) => {
                             let searcher = state.search.reader.searcher();
-                            let fields = state.search.fields.clone();
                             register_song_index(
                                 &song,
-                                fields.as_ref(),
+                                &state.search.fields,
                                 &state.search.index,
                                 &searcher,
                                 &state.search.writer.read(),

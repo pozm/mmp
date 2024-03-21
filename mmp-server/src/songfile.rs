@@ -10,7 +10,7 @@ use mmp_lib::SongEntry;
 use tracing::debug;
 
 use crate::state::ServerState;
-#[tracing::instrument(skip(tag,fallback))]
+#[tracing::instrument(skip(tag, fallback))]
 fn get_id_from_tag(tag: &Tag, fallback: &[u8]) -> Result<String> {
     Ok(tag
         .get_string(&lofty::ItemKey::MusicBrainzTrackId)

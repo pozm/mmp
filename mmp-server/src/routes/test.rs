@@ -7,7 +7,7 @@ use axum::{
     routing::get,
     Json, Router,
 };
-use mmp_lib::routes::test::SearchSongQuery;
+use mmp_lib::routes::song::SearchSongQuery;
 use tantivy::{error, query::QueryParser};
 use tracing::debug;
 

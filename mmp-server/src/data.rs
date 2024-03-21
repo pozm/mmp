@@ -1,1 +1,1 @@
-mod dbinit;
+pub mod dbinit;

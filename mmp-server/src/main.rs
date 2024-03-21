@@ -1,5 +1,5 @@
 pub mod cacher;
-mod data;
+pub mod data;
 mod routes;
 pub mod search;
 pub mod songfile;
